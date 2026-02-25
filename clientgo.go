@@ -16,10 +16,10 @@ import (
 )
 
 var (
-	option         string = "delete"    // option: add, delete, update, get
-	resource       string = "namespace" // resource: namespace, deployment
-	resourceName   string = "test001"   // resourceName: the name of the namespace or deployment to be added or deleted
-	resourceNsName string = "test001"   // resourceNsName: the name of the namespace where the deployment is located, only used when resource is deployment
+	option         string = "update"     // option: add, delete, update, get
+	resource       string = "deployment" // resource: namespace, deployment
+	resourceName   string = "scaffold"   // resourceName: the name of the namespace or deployment to be added or deleted
+	resourceNsName string = "scaffold"   // resourceNsName: the name of the namespace where the deployment is located, only used when resource is deployment
 
 	newNamespace corev1.Namespace  // 定义一个新的namespace对象
 	newDeopyment appsv1.Deployment // 定义一个新的deployment对象
@@ -38,7 +38,7 @@ func addNamespace(clientset *kubernetes.Clientset, resourceName string) {
 func addDeployment(clientset *kubernetes.Clientset, resourceName string) {
 	newDeopyment.Name = resourceName
 	newDeopyment.Spec.Replicas = new(int32)
-	*newDeopyment.Spec.Replicas = 3
+	*newDeopyment.Spec.Replicas = 1
 	newDeopyment.Spec.Template.Spec.Containers = append(newDeopyment.Spec.Template.Spec.Containers, corev1.Container{
 		Name:  "nginx",
 		Image: "nginx:latest",
@@ -122,6 +122,23 @@ func deleteDeployment(clientset *kubernetes.Clientset, resourceName string) {
 	}
 }
 
+// 更新一个deployment
+func updateDeployment(clientset *kubernetes.Clientset, resourceName string) {
+	// 获取当前deployment对象
+	deploy, err := clientset.AppsV1().Deployments(resourceNsName).Get(context.TODO(), resourceName, metav1.GetOptions{})
+	if err != nil {
+		logs.Error(map[string]interface{}{"Error:": err.Error()}, "deployment detail获取失败.")
+		return
+	}
+	// 更新deployment对象
+	deploy.Spec.Replicas = new(int32)
+	*deploy.Spec.Replicas = 1
+	_, err = clientset.AppsV1().Deployments(resourceNsName).Update(context.TODO(), deploy, metav1.UpdateOptions{})
+	if err != nil {
+		logs.Error(map[string]interface{}{"Error:": err.Error()}, "deployment更新失败.")
+	}
+}
+
 // 流程控制语句
 func selectActions() {
 	// use the current context in kubeconfig
@@ -154,7 +171,10 @@ func selectActions() {
 			deleteDeployment(clientset, resourceName)
 		}
 	case "update":
-		fmt.Println("update")
+		switch resource {
+		case "deployment":
+			updateDeployment(clientset, resourceName)
+		}
 	case "get":
 		fmt.Println("get")
 	default:
